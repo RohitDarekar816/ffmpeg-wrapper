@@ -1,0 +1,18 @@
+services:
+  ffmpeg-api:
+    build: .
+    image: ffmpeg-api:latest
+    container_name: ffmpeg-api
+    restart: unless-stopped # survives container/server restart
+    ports:
+      - "${HOST_PORT:-8000}:8000"
+    environment:
+      # On a shared Docker network, n8n reaches files via the service name.
+      # Set this so returned mp3_url is fetchable by n8n:
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-http://ffmpeg-api:8000}"
+      DEFAULT_BITRATE: "128k"
+    volumes:
+      - ffmpeg_data:/data # converted MP3s persist across restarts
+
+volumes:
+  ffmpeg_data:
