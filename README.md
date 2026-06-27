@@ -102,6 +102,8 @@ network — see the commented block at the bottom of `docker-compose.yml`, or se
   container or server/Docker restart.
 - Converted MP3s are written to the named volume `ffmpeg_data` (mounted at
   `/data`), so previously converted files remain downloadable after a restart.
+- A background sweep deletes files older than `FILE_RETENTION_HOURS` (default 24h)
+  so the volume does not grow without bound. Set it to `0` to keep files forever.
 
 ## Configuration (env vars)
 
@@ -112,6 +114,8 @@ network — see the commented block at the bottom of `docker-compose.yml`, or se
 | `DEFAULT_BITRATE`   | `128k`                   | Default MP3 bitrate.                               |
 | `MAX_DOWNLOAD_BYTES`| `524288000` (500 MB)     | Reject source files larger than this.              |
 | `DOWNLOAD_TIMEOUT`  | `120`                    | Source download timeout (seconds).                 |
+| `CONVERT_TIMEOUT`   | `300`                    | Max seconds for a single FFmpeg run.               |
+| `FILE_RETENTION_HOURS` | `24`                  | Auto-delete converted MP3s older than this (`0` = keep forever). |
 
 ## Test proof (curl)
 

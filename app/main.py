@@ -6,11 +6,13 @@ n8n sends an audio URL, this service downloads it, converts it to a real MP3
 (or the raw file). Interactive Swagger UI is served at /docs.
 """
 import asyncio
+import contextlib
 import os
 import re
+import time
 import uuid
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -27,8 +29,50 @@ DEFAULT_BITRATE = os.getenv("DEFAULT_BITRATE", "128k")
 # Max download size guard (bytes). Default 500 MB.
 MAX_DOWNLOAD_BYTES = int(os.getenv("MAX_DOWNLOAD_BYTES", str(500 * 1024 * 1024)))
 DOWNLOAD_TIMEOUT = float(os.getenv("DOWNLOAD_TIMEOUT", "120"))
+# Hard cap on a single FFmpeg run, so a pathological input can't hang a worker.
+CONVERT_TIMEOUT = float(os.getenv("CONVERT_TIMEOUT", "300"))
+# Delete converted MP3s older than this many hours, so /data does not grow
+# without bound. Set to 0 to keep files forever.
+FILE_RETENTION_HOURS = float(os.getenv("FILE_RETENTION_HOURS", "24"))
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _sweep_old_files() -> int:
+    """Delete leftover sources and MP3s past the retention window. Returns count."""
+    if FILE_RETENTION_HOURS <= 0:
+        return 0
+    cutoff = time.time() - FILE_RETENTION_HOURS * 3600
+    removed = 0
+    for path in DATA_DIR.iterdir():
+        if path.suffix not in (".mp3", ".src"):
+            continue
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink(missing_ok=True)
+                removed += 1
+        except OSError:
+            pass
+    return removed
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    async def _janitor():
+        while True:
+            with contextlib.suppress(Exception):
+                _sweep_old_files()
+            await asyncio.sleep(3600)
+
+    task = asyncio.create_task(_janitor()) if FILE_RETENTION_HOURS > 0 else None
+    try:
+        yield
+    finally:
+        if task:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
 
 app = FastAPI(
     title="FFmpeg Audio → MP3 API",
@@ -37,6 +81,7 @@ app = FastAPI(
         "Built for n8n. Try **POST /convert** below."
     ),
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 _BITRATE_RE = re.compile(r"^\d{1,4}k$")
@@ -127,7 +172,13 @@ async def _convert(src: Path, dst: Path, bitrate: str) -> None:
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    _, stderr = await proc.communicate()
+    try:
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=CONVERT_TIMEOUT)
+    except asyncio.TimeoutError:
+        proc.kill()
+        with contextlib.suppress(ProcessLookupError):
+            await proc.wait()
+        raise HTTPException(status_code=504, detail="FFmpeg conversion timed out.")
     if proc.returncode != 0:
         raise HTTPException(
             status_code=422,
