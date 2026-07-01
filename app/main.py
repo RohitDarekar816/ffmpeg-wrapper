@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import AliasChoices, BaseModel, Field, HttpUrl
 
 # --- Configuration (all overridable via environment variables) --------------
-DATA_DIR = Path(os.getenv("DATA_DIR", "/data"))
+DATA_DIR = Path(os.getenv("DATA_DIR", "/audio"))
 # Public base used to build the returned MP3 URL. On a shared Docker network
 # set this to e.g. http://ffmpeg-api:8000 so n8n can fetch the file back.
 # If left empty, the URL is derived from the incoming request.

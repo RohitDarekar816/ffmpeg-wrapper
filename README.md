@@ -100,8 +100,9 @@ network — see the commented block at the bottom of `docker-compose.yml`, or se
 
 - `restart: unless-stopped` — the container comes back automatically after a
   container or server/Docker restart.
-- Converted MP3s are written to the named volume `ffmpeg_data` (mounted at
-  `/data`), so previously converted files remain downloadable after a restart.
+- All audio files are written to the host `./audio` directory (bind-mounted at
+  `/audio` in the container), so previously converted files remain downloadable
+  after a container/server restart and are visible directly on the host.
 - A background sweep deletes files older than `FILE_RETENTION_HOURS` (default 24h)
   so the volume does not grow without bound. Set it to `0` to keep files forever.
 

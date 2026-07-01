@@ -4,6 +4,7 @@
 __pycache__
 *.pyc
 data/
+audio/
 *.mp3
 *.wav
 .env

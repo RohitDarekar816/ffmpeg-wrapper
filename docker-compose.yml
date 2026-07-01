@@ -11,8 +11,9 @@ services:
       # Set this so returned mp3_url is fetchable by n8n:
       PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-http://ffmpeg-api:8000}"
       DEFAULT_BITRATE: "128k"
+      # All audio files are stored here (inside the container).
+      DATA_DIR: "/audio"
     volumes:
-      - ffmpeg_data:/data # converted MP3s persist across restarts
-
-volumes:
-  ffmpeg_data:
+      # Bind-mount the host ./audio dir so all audio files land there and
+      # persist across container/server restarts.
+      - ./audio:/audio

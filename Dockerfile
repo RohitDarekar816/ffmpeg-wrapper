@@ -12,9 +12,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-# Converted files live here; mounted as a volume for restart persistence.
-ENV DATA_DIR=/data
-RUN mkdir -p /data
+# Audio files live here; bind-mounted to the host ./audio dir in compose.
+ENV DATA_DIR=/audio
+RUN mkdir -p /audio
 
 EXPOSE 8000
 
