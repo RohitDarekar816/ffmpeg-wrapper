@@ -9,11 +9,18 @@ services:
     environment:
       # On a shared Docker network, n8n reaches files via the service name.
       # Set this so returned mp3_url is fetchable by n8n:
-      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-http://ffmpeg-api:8000}"
+      PUBLIC_BASE_URL: "https://api.auftragsprofi24.de"
       DEFAULT_BITRATE: "128k"
       # All audio files are stored here (inside the container).
       DATA_DIR: "/audio"
+      FILE_RETENTION_HOURS: "0"
     volumes:
       # Bind-mount the host ./audio dir so all audio files land there and
       # persist across container/server restarts.
-      - ./audio:/audio
+      - /var/www/html/audio:/audio
+    networks:
+      - n8n_default
+
+networks:
+  n8n_default:
+    external: true
